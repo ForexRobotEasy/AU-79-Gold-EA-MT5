@@ -1,0 +1,183 @@
+mql5
+//+------------------------------------------------------------------+
+//|                                                         AU 79 Gold EA MT5                                                    |
+//|                                                    forexroboteasy.com                                              |
+//|                                                   Forex Robot Easy Team                                          |
+//|                                                                                                                                  |
+//|                                                                                                                                  |
+//+------------------------------------------------------------------+
+#property copyright 'forexroboteasy.com'
+#property link      'https://www.forexroboteasy.com'
+
+// Define input parameters
+input double lotSize = 0.01; // Lot size for each trade
+input double stopLoss = 100; // Stop loss level in pips
+input double takeProfit = 200; // Take profit level in pips
+
+// Define global variables
+int ticket = -1; // Ticket number of the open position
+
+//+------------------------------------------------------------------+
+//| Expert initialization function                                   |
+//+------------------------------------------------------------------+
+int OnInit()
+{
+    // Enable trading
+    TradingAllowed(true);
+    
+    return(INIT_SUCCEEDED);
+}
+
+//+------------------------------------------------------------------+
+//| Expert deinitialization function                                 |
+//+------------------------------------------------------------------+
+void OnDeinit(const int reason)
+{
+    // Close any open position before deinitialization
+    ClosePosition();
+}
+
+//+------------------------------------------------------------------+
+//| Expert tick function                                             |
+//+------------------------------------------------------------------+
+void OnTick()
+{
+    // Check if there is an open position
+    if (ticket == -1)
+    {
+        double currentPrice = MarketInfo('XAUUSD', MODE_BID); // Get the current bid price of gold
+        
+        // Check if the current price is above a certain threshold
+        if (currentPrice > 1800)
+        {
+            // Open a buy position
+            OpenBuyPosition();
+        }
+        // Check if the current price is below a certain threshold
+        else if (currentPrice < 1700)
+        {
+            // Open a sell position
+            OpenSellPosition();
+        }
+    }
+    else
+    {
+        // Check if the open position has reached the take profit level
+        if (IsTakeProfitReached(ticket))
+        {
+            // Close the position
+            ClosePosition();
+        }
+        // Check if the open position has reached the stop loss level
+        else if (IsStopLossReached(ticket))
+        {
+            // Close the position
+            ClosePosition();
+        }
+    }
+}
+
+//+------------------------------------------------------------------+
+//| Function to open a buy position                                   |
+//+------------------------------------------------------------------+
+void OpenBuyPosition()
+{
+    // Calculate the stop loss and take profit levels
+    double sl = NormalizeDouble(Bid - stopLoss * Point, Digits);
+    double tp = NormalizeDouble(Bid + takeProfit * Point, Digits);
+    
+    // Open a buy position with the specified lot size, stop loss and take profit levels
+    ticket = OrderSend('XAUUSD', OP_BUY, lotSize, Bid, 0, sl, tp, 'AU 79 Gold EA MT5', MagicNumber(), 0, CLR_NONE);
+    
+    if (ticket < 0)
+    {
+        Print('Error opening buy position: ', GetLastError());
+    }
+}
+
+//+------------------------------------------------------------------+
+//| Function to open a sell position                                  |
+//+------------------------------------------------------------------+
+void OpenSellPosition()
+{
+    // Calculate the stop loss and take profit levels
+    double sl = NormalizeDouble(Ask + stopLoss * Point, Digits);
+    double tp = NormalizeDouble(Ask - takeProfit * Point, Digits);
+    
+    // Open a sell position with the specified lot size, stop loss and take profit levels
+    ticket = OrderSend('XAUUSD', OP_SELL, lotSize, Ask, 0, sl, tp, 'AU 79 Gold EA MT5', MagicNumber(), 0, CLR_NONE);
+    
+    if (ticket < 0)
+    {
+        Print('Error opening sell position: ', GetLastError());
+    }
+}
+
+//+------------------------------------------------------------------+
+//| Function to close the open position                               |
+//+------------------------------------------------------------------+
+void ClosePosition()
+{
+    // Close the position using the ticket number
+    bool result = OrderClose(ticket, OrderLots(), MarketInfo(ticket, MODE_BID), 0, CLR_NONE);
+    
+    if (!result)
+    {
+        Print('Error closing position: ', GetLastError());
+    }
+    
+    // Reset the ticket number
+    ticket = -1;
+}
+
+//+------------------------------------------------------------------+
+//| Function to check if the take profit level is reached             |
+//+------------------------------------------------------------------+
+bool IsTakeProfitReached(const int ticket)
+{
+    double tp = OrderTakeProfit(ticket);
+    
+    if (tp == 0)
+    {
+        return false;
+    }
+    
+    double currentPrice = MarketInfo('XAUUSD', MODE_BID);
+    
+    if (OrderType(ticket) == OP_BUY)
+    {
+        return currentPrice >= tp;
+    }
+    else if (OrderType(ticket) == OP_SELL)
+    {
+        return currentPrice <= tp;
+    }
+    
+    return false;
+}
+
+//+------------------------------------------------------------------+
+//| Function to check if the stop loss level is reached               |
+//+------------------------------------------------------------------+
+bool IsStopLossReached(const int ticket)
+{
+    double sl = OrderStopLoss(ticket);
+    
+    if (sl == 0)
+    {
+        return false;
+    }
+    
+    double currentPrice = MarketInfo('XAUUSD', MODE_BID);
+    
+    if (OrderType(ticket) == OP_BUY)
+    {
+        return currentPrice <= sl;
+    }
+    else if (OrderType(ticket) == OP_SELL)
+    {
+        return currentPrice >= sl;
+    }
+    
+    return false;
+}
